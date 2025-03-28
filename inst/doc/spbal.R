@@ -398,7 +398,7 @@ Frame <- result7$hf.pts.shp
 
 ## ----HFex1e, message=FALSE, warning=FALSE-------------------------------------
 n_samples <- 25
-FrameSample <-getSample(shapefile = Frame, 
+FrameSample <- getSample(shapefile = Frame, 
                         n = n_samples)
 FrameSample <- FrameSample$sample
 FrameSample[1:10, c("x", "spbalSeqID")]

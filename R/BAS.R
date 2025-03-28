@@ -229,63 +229,56 @@ getBASSampleDriver <- function(shapefile, bb, n, seeds, verbose = FALSE){
   # The assumption is that if seeds are not null then user has previously run this to get
   # a sample and associated seeds.
   if(base::is.null(seeds)){
-    seeds <- generateUVector()
+    # seeds <- generateUVector()
+    # find the first point in the study region (picked at random), specifically we want to
+    # find the seeds that give us the first point in the study region.
+    # first.pt <- findFirstStudyRegionPoint(shapefile = shapefile, bb = bb, seeds = seeds, verbose = verbose)
+    seeds <- findBASSeed(shapefile = shapefile, bb = bb, n = 1, verbose = verbose)
     if(verbose){
-      msg <- "spbal(getBASSampleDriver) Seeds from generateUVector() u1 = %s, u2 = %s."
+      msg <- "spbal(getBASSampleDriver) Seeds u1 = %s, u2 = %s gave first study region point."
       msgs <- base::sprintf(msg, seeds[1], seeds[2])
       base::message(msgs)
     }
-    # find the first point in the study region (picked at random), specifically we want to
-    # find the seeds that give us the first point in the study region.
-    first.pt <- findFirstStudyRegionPoint(shapefile = shapefile, bb = bb, seeds = seeds, verbose = verbose)
+  }
 
-    # get the index of the first point (actually the SiteID).
-    k <- first.pt$k
-    # calculate new seeds.
-    seedshift <- base::c(first.pt$seeds[1] + k - 1, first.pt$seeds[2] + k - 1)
-    if(verbose){
-      msg <- "spbal(getBASSampleDriver) New seeds for first point u1 = %s, u2 = %s."
-      msgs <- base::sprintf(msg, seedshift[1], seedshift[2])
-      base::message(msgs)
-    }
-  } else {
-    seedshift <- seeds
-  } # end is.null(seeds)
-
-  ## Check bounding box and find efficient Halton indices (boxes)
-  BASInfo <- setBASIndex(shapefile, bb, seedshift)
+  # Check bounding box and find efficient Halton indices (boxes)
+  BASInfo <- setBASIndex(shapefile, bb, seeds)
   boxes <- BASInfo$boxes
 
   # number of samples required.
-  draw <- n * 4
+  draw <- n * 6
   # just the first point so far, need n.
   num_samples <- 0
   n_samples <- 0
+
+  ## Track indices to match boxes.
+  boxdraw <- 0
 
   # count number of times we call spbal::getBASSample.
   call.getBASSample.cnt <- 0
   # keep generating BAS samples until we find n sample points in the study area.
   while(num_samples < n){
     # double the number of points to find to try and reduce number of loops.
-    draw <- draw * 2
+    # draw <- draw * 2  ## Can lead to slow results...
 
-    boxes <- boxes + BASInfo$B*call.getBASSample.cnt  ## Go to next set of boxes if repeating loop.
-    ## Create indices repeating every Bth for each box until a full draw is taken.
-    ii <- 1
-    while( base::length(boxes) < draw ){
-      boxes <- base::c(boxes, BASInfo$boxes + ii*BASInfo$B)
-      ii <- ii+1
+    # Go to next set of boxes if repeating loop.
+    boxes <- BASInfo$boxes + (BASInfo$B * boxdraw)
+    # Create indices repeating every Bth for each box until a full draw is taken.
+    while(base::length(boxes) < draw){
+      boxdraw <- boxdraw + 1
+      boxes <- base::c(boxes, BASInfo$boxes + (boxdraw * BASInfo$B))
     }
+    boxdraw <- boxdraw + 1
 
     # go get sample.
-    pts.sample <- getBASSample(shapefile = shapefile, bb = bb , n = draw, seeds = seedshift, boxes = boxes)
+    pts.sample <- getBASSample(shapefile = shapefile, bb = bb , n = draw, seeds = seeds, boxes = boxes)
     n_samples <- base::length(pts.sample$sample$SiteID)
 
-    ## First time create ret_sample
+    # First time create ret_sample
     if(n_samples > 0 & num_samples == 0) ret_sample <- pts.sample$sample
 
     # If some samples are found, and samples were previously found, bind them.
-    if(n_samples > 0 & num_samples > 0) ret_sample <- rbind(ret_sample, pts.sample$sample)
+    if(n_samples > 0 & num_samples > 0) ret_sample <- base::rbind(ret_sample, pts.sample$sample)
 
     if(verbose){
       msg <- "spbal(getBASSampleDriver) after getBASSample n_samples = %s. num_samples = %s"
@@ -293,7 +286,7 @@ getBASSampleDriver <- function(shapefile, bb, n, seeds, verbose = FALSE){
       base::message(msgs)
     }
     call.getBASSample.cnt <- call.getBASSample.cnt + 1
-    num_samples <- num_samples + n_samples  ## New sampled added.
+    num_samples <- num_samples + n_samples
   } # end while num_samples < n
 
   if(verbose){
@@ -302,7 +295,6 @@ getBASSampleDriver <- function(shapefile, bb, n, seeds, verbose = FALSE){
     base::message(msgs)
   }
 
-  seeds <- seedshift
   # add a sample ID for the user.
   ret_sample$spbalSeqID <- base::seq(1, base::length(ret_sample$SiteID))
   # add the "Count" feature for NZ_DOC (acts as a unique ID for backward compatibility purposes).
@@ -407,7 +399,7 @@ setBASIndex <- function(shapefile, bb, seeds = base::c(0,0)){
   inner.bb <- sf::st_bbox(shapefile)
 
   ## Check if bb and st_bbox are equivalent, return if they are for efficiency.
-  if( base::all(inner.bb == bb.bounds) ) return(base::list(boxes = 1, B = 1, J = base::c(0, 0), xlim = base::c(0, 1), ylim = base::c(0, 1)))
+  if(base::all(inner.bb == bb.bounds)) return(base::list(boxes = 1, B = 1, J = base::c(0, 0), xlim = base::c(0, 1), ylim = base::c(0, 1)))
 
   scale.bas <- bb.bounds[3:4] - bb.bounds[1:2]
   shift.bas <- bb.bounds[1:2]
@@ -418,7 +410,8 @@ setBASIndex <- function(shapefile, bb, seeds = base::c(0,0)){
 
   J <- base::c(0, 0)
   box.area <- 1
-  ## 25% area seems like a good rule of thumb from prev code.
+
+  # 25% area seems like a good rule of thumb from prev code.
   while(inner.area/box.area < 0.25){
     if(bases[1]^J[1] <= bases[2]^J[2]){
       J[1] <- J[1] + 1
@@ -433,21 +426,21 @@ setBASIndex <- function(shapefile, bb, seeds = base::c(0,0)){
   }
   B <- base::prod(bases^J)
 
-  if( base::all(J == 0) ) return(base::list(boxes = 1,
-                                            B = 1,
-                                            J = base::c(0, 0),
-                                            xlim = base::c(0, 1),
-                                            ylim = c(0, 1)))
+  if(base::all(J == 0)) return(base::list(boxes = 1,
+                                          B = 1,
+                                          J = base::c(0, 0),
+                                          xlim = base::c(0, 1),
+                                          ylim = base::c(0, 1)))
   ## Intersect first B BAS points in the boxes
   ptsx <- cppBASptsIndexed(n = B, seeds = seeds[1], bases = bases[1])$pts
   indx <- base::which(ptsx[,1] >= xlim[1] & ptsx[,1] < xlim[2])
   ptsy <- cppBASptsIndexed(n = 1, seeds = seeds[2], bases = bases[2], boxes = indx)$pts
   boxes <- indx[ptsy[,1] >= ylim[1] & ptsy[,1] < ylim[2]]
 
-  return(list(boxes = boxes,
-              J = J,
-              B = B,
-              xlim = xlim,
-              ylim = ylim))
+  result <- base::list(boxes = boxes,
+                       J = J,
+                       B = B,
+                       xlim = xlim,
+                       ylim = ylim)
+  return(result)
 }
-

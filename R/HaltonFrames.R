@@ -303,7 +303,9 @@ HaltonFrame <- function(N = 1,
   # if we are not performing a panel_design or stratification
   if (!panel_design & wantHaltonFrame & !hf_stratification){
     if(verbose){
-      base::message("spbal(HaltonFrame) Return N sample points.")
+      msg <- "spbal(HaltonFrame) Return %s sample points."
+      msgs <- base::sprintf(msg, N)
+      base::message(msgs)
     }
     # turn our sample into points.
     diff_pts <- sf::st_cast(diff_, "POINT")

@@ -1,7 +1,7 @@
 ---
 title: "spbal - Spatially Balanced Sampling"
-author: "spbal 1.0.1"
-date: "April 2024"
+author: "spbal 1.1.0"
+date: "September 2026"
 
 always_allow_html: true
 
@@ -42,7 +42,8 @@ library(gridExtra)
 # spbal 
 
 This vignette is intended to provide details of the functions and methods provided in the __spbal__ package.
-The **spbal** package has three spatially balanced sample designs: BAS, Halton Frames and HIP. This document illustrates how samples are drawn using **spbal**, including master and stratified sampling applications. The package is freely available from CRAN. This document was created with **spbal** version $1.0.0$.
+The **spbal** package has three spatially balanced sample designs: BAS, Halton Frames, HIP, DAS and
+doubleDAS. This document illustrates how samples are drawn using **spbal**, including master and stratified sampling applications. The package is freely available from CRAN. This document was created with **spbal** version $1.1.0$.
 
 This vignette is divided into the following sections:
 
@@ -50,6 +51,8 @@ This vignette is divided into the following sections:
 - Balanced acceptance sampling (BAS)
 - Halton Frames (HF)
 - Halton Iterative Partitioning (HIP)
+- Dynamic Assignment Sampling (DAS)
+- Doubly balanced Dynamic Assignment Sampling (doubleDAS)
 
 Lets start by looking at Simple Random Sampling (SRS).
 
@@ -957,5 +960,14 @@ Let 'shp' be the output from *BAS* or *HaltonFrame*, then
 
 
 Use the *R* help function for more information on these functions.
+
+## Dynamic Assignment Sampling (DAS)
+
+Please see the vignette 'DAS and doubleDAS User Guide v1' for details on how to use DAS.
+
+## Doubly balanced Dynamic Assignment Sampling (doubleDAS)
+
+Please see the vignette 'DAS and doubleDAS User Guide v1' for details on how to use doubleDAS.
+
 
 ## The End
